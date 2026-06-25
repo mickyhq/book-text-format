@@ -1,0 +1,54 @@
+{
+  "name": "book-text-formatter",
+  "displayName": "Book Text Formatter",
+  "description": "Format text for book layouts with margin wrapping, double spacing, and smart cleanup.",
+  "version": "0.1.0",
+  "publisher": "your-publisher-name",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Formatters"
+  ],
+  "activationEvents": [
+    "onCommand:book-text-formatter.formatText"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "book-text-formatter.formatText",
+        "title": "Book Formatter: Format Text Layout"
+      }
+    ],
+    "configuration": {
+      "title": "Book Text Formatter",
+      "properties": {
+        "bookTextFormatter.marginWidth": {
+          "type": "number",
+          "default": 80,
+          "minimum": 20,
+          "maximum": 500,
+          "description": "Maximum number of characters per line when wrapping text."
+        },
+        "bookTextFormatter.doubleSpacing": {
+          "type": "boolean",
+          "default": true,
+          "description": "Insert an empty line between every line of text."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "lint": "eslint src --ext ts"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/vscode": "^1.85.0",
+    "typescript": "^5.3.0"
+  }
+}
