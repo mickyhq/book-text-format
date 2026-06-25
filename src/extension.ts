@@ -8,6 +8,9 @@ import * as vscode from 'vscode';
  *     line breaks and extra whitespace inside each paragraph.
  *  2. Wrapping each paragraph at a user-configurable margin (default: 80 characters).
  *  3. Optionally inserting an empty line between every wrapped line (double spacing).
+ *  4. Optionally indenting the first line of each paragraph.
+ *  5. Optionally justifying text (even left + right edges).
+ *  6. Optionally formatting on save.
  */
 
 export function activate(context: vscode.ExtensionContext) {
@@ -19,6 +22,52 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     context.subscriptions.push(disposable);
+
+    // Format-on-save listener
+    const saveListener = vscode.workspace.onWillSaveTextDocument((e: vscode.TextDocumentWillSaveEvent) => {
+        const config = vscode.workspace.getConfiguration('bookTextFormatter');
+        const formatOnSave = config.get<boolean>('formatOnSave', false);
+        if (!formatOnSave) {
+            return;
+        }
+
+        const document = e.document;
+        const languageId = document.languageId;
+        const fileName = document.fileName;
+
+        // Check if this file type should be formatted on save.
+        const allowedTypes = config.get<string[]>('formatOnSaveFileTypes', ['plaintext', 'txt']);
+        const shouldFormat = allowedTypes.some(t => {
+            // Match by language ID or file extension (with dot, e.g. ".txt").
+            if (t.startsWith('.')) {
+                return fileName.endsWith(t);
+            }
+            return languageId === t;
+        });
+
+        if (!shouldFormat) {
+            return;
+        }
+
+        // Find the editor for this document.
+        const editor = vscode.window.visibleTextEditors.find(
+            ed => ed.document === document
+        );
+
+        if (editor) {
+            // We must wait for the save to complete before formatting,
+            // otherwise our edit would conflict. Schedule after the save.
+            const disposable = vscode.workspace.onDidSaveTextDocument((savedDoc: vscode.TextDocument) => {
+                if (savedDoc === document) {
+                    disposable.dispose();
+                    formatText(editor);
+                }
+            });
+            context.subscriptions.push(disposable);
+        }
+    });
+
+    context.subscriptions.push(saveListener);
 }
 
 export function deactivate() {
@@ -29,10 +78,19 @@ export function deactivate() {
  * Retrieves the current value of a configuration setting, falling back to a default
  * when the setting is not defined or has an unexpected type.
  */
-function getConfig<T>(section: string, defaultValue: T): T {
+function getConfig<T>(section: string, defaultValue: T, silent = false): T {
     const config = vscode.workspace.getConfiguration('bookTextFormatter');
     const value = config.get<T>(section);
     if (value === undefined || value === null) {
+        return defaultValue;
+    }
+    if (typeof value !== typeof defaultValue) {
+        if (!silent) {
+            void vscode.window.showWarningMessage(
+                `Book Text Formatter: "${section}" is configured with an invalid type ` +
+                `(expected ${typeof defaultValue}, got ${typeof value}). Falling back to default: ${JSON.stringify(defaultValue)}`
+            );
+        }
         return defaultValue;
     }
     return value;
@@ -45,6 +103,8 @@ function formatText(editor: vscode.TextEditor): void {
     const document = editor.document;
     const marginWidth = getConfig<number>('marginWidth', 80);
     const doubleSpace = getConfig<boolean>('doubleSpacing', true);
+    const firstLineIndent = getConfig<number>('firstLineIndent', 0);
+    const justifyText = getConfig<boolean>('justifyText', false);
 
     // --------------------------------------------------------------------------
     // 1. Determine the range of text to format.
@@ -54,7 +114,6 @@ function formatText(editor: vscode.TextEditor): void {
     let range: vscode.Range;
 
     if (selection.isEmpty) {
-        // Format the whole document.
         const firstLine = document.lineAt(0);
         const lastLine = document.lineAt(document.lineCount - 1);
         range = new vscode.Range(
@@ -75,62 +134,70 @@ function formatText(editor: vscode.TextEditor): void {
     // --------------------------------------------------------------------------
     // 2. Smart Cleanup — split into paragraphs on blank lines, then collapse
     //    each paragraph into a clean flowing block.
-    //
-    //    Paragraphs are separated by one or more blank lines (e.g. \n\n or \n\n\n).
-    //    Inside each paragraph, line-breaks and extra whitespace are collapsed.
     // --------------------------------------------------------------------------
     const normalizedText = inputText
-        .replace(/\r\n/g, '\n')           // Normalise CRLF → LF.
-        .replace(/\r/g, '\n');            // Normalise bare CR → LF.
+        .replace(/\r\n/g, '\n')
+        .replace(/\r/g, '\n');
 
-    // Split on two-or-more consecutive newlines (blank lines between paragraphs).
-    // The pattern /(\n\n+)/ captures one or more blank lines so we keep each
-    // paragraph as a separate block.
     const rawParagraphs = normalizedText.split(/\n\n+/);
 
-    // Clean up each paragraph individually.
     const paragraphs = rawParagraphs
         .map(p => p
-            .replace(/\n+/g, ' ')         // Collapse line-breaks inside the paragraph.
-            .replace(/[ \t]+/g, ' ')      // Collapse multiple spaces/tabs.
+            .replace(/\n+/g, ' ')
+            .replace(/[ \t]+/g, ' ')
             .trim()
         )
-        .filter(p => p.length > 0);       // Discard empty paragraphs (e.g. leading/trailing whitespace-only blocks).
+        .filter(p => p.length > 0);
 
     if (paragraphs.length === 0) {
         vscode.window.showWarningMessage('Nothing to format after cleaning whitespace.');
         return;
     }
 
-    // --------------------------------------------------------------------------
-    // 3. Word-wrap each paragraph to the configured margin width.
-    //    Words longer than the margin are placed on their own line (they are not
-    //    mid-split) to avoid orphaned fragments.
-    // --------------------------------------------------------------------------
-    const wrappedParagraphs = paragraphs.map(p => wordWrap(p, marginWidth));
-
-    // --------------------------------------------------------------------------
-    // 4. Join lines with the configured spacing.
-    //    - Double-spacing ON:  blank line between every line (including across
-    //                          paragraph boundaries — all lines uniformly spaced).
-    //    - Double-spacing OFF: blank line only between paragraphs; lines inside
-    //                          a paragraph are consecutive.
-    // --------------------------------------------------------------------------
-    const paramGlue = doubleSpace ? '\n\n' : '\n';
-    const formattedParagraphs = wrappedParagraphs.map(lines => lines.join(paramGlue));
-    const formattedText = formattedParagraphs.join('\n\n');
-
-    // --------------------------------------------------------------------------
-    // 5. Replace the original text with the formatted text.
-    // --------------------------------------------------------------------------
-    editor.edit((editBuilder: vscode.TextEditorEdit) => {
-        editBuilder.replace(range, formattedText);
-    }).then(
-        (success: boolean) => {
-            if (!success) {
-                vscode.window.showErrorMessage('Failed to apply text formatting.');
-            }
+    // We use a progress reporter for large documents.
+    vscode.window.withProgress(
+        {
+            location: vscode.ProgressLocation.Notification,
+            title: 'Book Formatter: formatting text...',
+            cancellable: false
         },
+        async (_progress) => {
+            // ------------------------------------------------------------------
+            // 3. Word-wrap each paragraph to the configured margin width.
+            // ------------------------------------------------------------------
+            const wrappedParagraphs = paragraphs.map(p => {
+                const wrapped = wordWrap(p, marginWidth);
+
+                // Apply first-line indent if configured.
+                if (firstLineIndent > 0 && wrapped.length > 0) {
+                    const indent = ' '.repeat(firstLineIndent);
+                    wrapped[0] = indent + wrapped[0];
+                }
+
+                // Apply justification if configured.
+                if (justifyText) {
+                    return justifyLines(wrapped, marginWidth);
+                }
+
+                return wrapped;
+            });
+
+            // ------------------------------------------------------------------
+            // 4. Join lines with the configured spacing.
+            // ------------------------------------------------------------------
+            const paramGlue = doubleSpace ? '\n\n' : '\n';
+            const formattedParagraphs = wrappedParagraphs.map(lines => lines.join(paramGlue));
+            const formattedText = formattedParagraphs.join('\n\n');
+
+            // ------------------------------------------------------------------
+            // 5. Replace the original text with the formatted text.
+            // ------------------------------------------------------------------
+            await editor.edit((editBuilder: vscode.TextEditorEdit) => {
+                editBuilder.replace(range, formattedText);
+            });
+        }
+    ).then(
+        undefined,
         (reason: unknown) => {
             vscode.window.showErrorMessage(
                 `Book Text Formatter error: ${reason}`
@@ -141,11 +208,6 @@ function formatText(editor: vscode.TextEditor): void {
 
 /**
  * Word-wraps `text` at `width` characters without breaking words.
- *
- * Rules:
- *  - Any single word longer than `width` is placed on its own line (not split).
- *  - Consecutive spaces in the input do not exist because we normalised them
- *    during the cleanup step; this function assumes single-space separation.
  */
 function wordWrap(text: string, width: number): string[] {
     const words = text.split(' ');
@@ -156,22 +218,81 @@ function wordWrap(text: string, width: number): string[] {
         const word = words[i];
 
         if (currentLine.length === 0) {
-            // Start a new line with this word.
             currentLine = word;
         } else if (currentLine.length + 1 + word.length <= width) {
-            // Word fits on the current line.
             currentLine += ' ' + word;
         } else {
-            // Word does not fit — push the current line and start a new one.
             lines.push(currentLine);
             currentLine = word;
         }
     }
 
-    // Don't forget the last accumulated line.
     if (currentLine.length > 0) {
         lines.push(currentLine);
     }
 
     return lines;
+}
+
+/**
+ * Justifies an array of lines by distributing extra spaces between words
+ * so that each line (except the last) reaches exactly `width` characters.
+ *
+ * The last line of a paragraph is left-aligned (not justified) to avoid
+ * stretching a short final line.
+ */
+function justifyLines(lines: string[], width: number): string[] {
+    if (lines.length === 0) {
+        return lines;
+    }
+
+    const justified: string[] = [];
+
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+
+        // The last line of a paragraph is never justified.
+        if (i === lines.length - 1) {
+            justified.push(line);
+            break;
+        }
+
+        const words = line.split(' ');
+        if (words.length <= 1) {
+            // Single-word line — nothing to justify.
+            justified.push(line);
+            continue;
+        }
+
+        const currentLength = line.length;
+        const neededSpaces = width - currentLength;
+
+        if (neededSpaces <= 0) {
+            // Line is already at or past the margin width.
+            justified.push(line);
+            continue;
+        }
+
+        // Distribute extra spaces across the gaps between words.
+        const gaps = words.length - 1;
+        const spacesPerGap = Math.floor(neededSpaces / gaps);
+        const extraSpaces = neededSpaces % gaps;
+
+        let result = '';
+        for (let w = 0; w < words.length; w++) {
+            result += words[w];
+            if (w < gaps) {
+                // One base space + allocated extra spaces.
+                let spaceCount = 1 + spacesPerGap;
+                if (w < extraSpaces) {
+                    spaceCount++;
+                }
+                result += ' '.repeat(spaceCount);
+            }
+        }
+
+        justified.push(result);
+    }
+
+    return justified;
 }

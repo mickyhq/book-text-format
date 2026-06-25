@@ -3,7 +3,7 @@
   "displayName": "Book Text Formatter",
   "description": "Format text for book layouts with margin wrapping, double spacing, and smart cleanup.",
   "version": "0.1.0",
-  "publisher": "Micky Balladelli",
+  "publisher": "mickyhq",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -16,8 +16,10 @@
     "Formatters"
   ],
   "activationEvents": [
-    "onCommand:book-text-formatter.formatText"
+    "onCommand:book-text-formatter.formatText",
+    "onLanguage:plaintext"
   ],
+  "icon": "icon.png",
   "main": "./out/extension.js",
   "contributes": {
     "commands": [
@@ -26,6 +28,23 @@
         "title": "Book Formatter: Format Text Layout"
       }
     ],
+    "keybindings": [
+      {
+        "command": "book-text-formatter.formatText",
+        "key": "ctrl+shift+t",
+        "mac": "cmd+shift+t",
+        "when": "editorTextFocus"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "book-text-formatter.formatText",
+          "when": "editorTextFocus",
+          "group": "1_modification"
+        }
+      ]
+    },
     "configuration": {
       "title": "Book Text Formatter",
       "properties": {
@@ -40,6 +59,34 @@
           "type": "boolean",
           "default": true,
           "description": "Insert an empty line between every line of text."
+        },
+        "bookTextFormatter.formatOnSave": {
+          "type": "boolean",
+          "default": false,
+          "description": "Automatically format plain text files on save."
+        },
+        "bookTextFormatter.formatOnSaveFileTypes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "plaintext",
+            "txt"
+          ],
+          "description": "Language IDs or file extensions (with dot, e.g. '.txt') to format on save."
+        },
+        "bookTextFormatter.firstLineIndent": {
+          "type": "number",
+          "default": 0,
+          "minimum": 0,
+          "maximum": 20,
+          "description": "Number of spaces to indent the first line of each paragraph (0 = no indent)."
+        },
+        "bookTextFormatter.justifyText": {
+          "type": "boolean",
+          "default": false,
+          "description": "Justify text by padding lines with spaces so both left and right edges align at the margin."
         }
       }
     }
@@ -48,11 +95,19 @@
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
-    "lint": "eslint src --ext ts"
+    "lint": "eslint src --ext ts",
+    "test": "node ./out/test/runTest.js",
+    "pretest": "npm run compile"
   },
   "devDependencies": {
-    "@types/node": "^20.11.0",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^20.19.43",
     "@types/vscode": "^1.85.0",
+    "@typescript-eslint/eslint-plugin": "^8.62.0",
+    "@typescript-eslint/parser": "^8.62.0",
+    "@vscode/test-electron": "^3.0.0",
+    "eslint": "^10.5.0",
+    "mocha": "^11.7.6",
     "typescript": "^5.3.0"
   }
 }
