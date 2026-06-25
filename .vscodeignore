@@ -3,7 +3,7 @@
 node_modules/**
 src/**
 tsconfig.json
-.eslintrc.json
+eslint.config.js
 .gitignore
 README.md
 TODO.md

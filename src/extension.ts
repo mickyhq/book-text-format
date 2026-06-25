@@ -161,7 +161,7 @@ function formatText(editor: vscode.TextEditor): void {
             title: 'Book Formatter: formatting text...',
             cancellable: false
         },
-        async (_progress) => {
+        async () => {
             // ------------------------------------------------------------------
             // 3. Word-wrap each paragraph to the configured margin width.
             // ------------------------------------------------------------------
