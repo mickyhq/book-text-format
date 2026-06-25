@@ -3,8 +3,12 @@
   "displayName": "Book Text Formatter",
   "description": "Format text for book layouts with margin wrapping, double spacing, and smart cleanup.",
   "version": "0.1.0",
-  "publisher": "your-publisher-name",
+  "publisher": "Micky Balladelli",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mickyhq/book-text-format.git"
+  },
   "engines": {
     "vscode": "^1.85.0"
   },

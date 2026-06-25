@@ -6,10 +6,10 @@ A living list of improvements for the **Book Text Formatter** VS Code extension.
 
 ## 🔴 High Priority
 
-- [x] **Preserve paragraph breaks** — The current `Smart Cleanup` collapses *all* line breaks into a single flowing paragraph. Blank lines in the original text should be treated as paragraph separators (e.g., `\n\n` → paragraph break) so multi-paragraph documents aren't flattened into one block.
-- [ ] **Fix trailing blank line with double-spacing** — When double-spacing is enabled, joining with `\n\n` appends a blank line after the last line of text, adding unwanted trailing whitespace to the document.
-- [ ] **Update `publisher` field** — `package.json` still has `"publisher": "your-publisher-name"`. Replace with a real publisher ID.
-- [ ] **Add `repository` field to `package.json`** — Missing repo metadata (e.g., `"repository": { "type": "git", "url": "https://github.com/mickyhq/book-text-format.git" }`).
+- [x] **Preserve paragraph breaks** — Blank lines in the original text are now treated as paragraph separators. Each paragraph is cleaned and wrapped independently.
+- [x] **Fix trailing blank line with double-spacing** — Resolved by the paragraph-aware refactor: `Array.join()` only places the separator between elements, never after the last one.
+- [x] **Add `repository` field to `package.json`** — Added `"repository": { "type": "git", "url": "https://github.com/mickyhq/book-text-format.git" }`.
+- [ ] **Update `publisher` field** — `package.json` still has `"publisher": "your-publisher-name"`. Replace with a real publisher ID (or verify the current value `"Micky Balladelli"` is correct).
 
 ---
 
@@ -43,3 +43,6 @@ A living list of improvements for the **Book Text Formatter** VS Code extension.
 
 - [x] Initial commit and push to GitHub
 - [x] Branch renamed to `main`
+- [x] Preserve paragraph breaks implementation
+- [x] Fix trailing blank line with double-spacing
+- [x] Add repository field to package.json
