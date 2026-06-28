@@ -17,7 +17,7 @@ function wordWrap(text: string, width: number): string[] {
     for (let i = 0; i < words.length; i++) {
         const word = words[i];
 
-        if (word.startsWith('—') && currentLine.length > 0) {
+        if (isDialogueStart(word) && currentLine.length > 0) {
             lines.push(currentLine);
             currentLine = word;
         } else if (currentLine.length === 0) {
@@ -35,6 +35,10 @@ function wordWrap(text: string, width: number): string[] {
     }
 
     return lines;
+}
+
+function isDialogueStart(text: string): boolean {
+    return text.startsWith('—') || text.startsWith('-');
 }
 
 function justifyLines(lines: string[], width: number): string[] {
@@ -97,11 +101,13 @@ function cleanParagraph(text: string): string {
         .trim();
 }
 
-function splitParagraphs(text: string): string[] {
+function splitParagraphs(text: string, doubleSpace = false): string[] {
+    const paragraphBreak = doubleSpace ? /\n{4,}/ : /\n{2,}/;
+
     return text
         .replace(/\r\n/g, '\n')
         .replace(/\r/g, '\n')
-        .split(/\n\n+/)
+        .split(paragraphBreak)
         .map(p => cleanParagraph(p))
         .filter(p => p.length > 0);
 }
@@ -160,6 +166,19 @@ suite('wordWrap', () => {
             '—First speaker.',
             '— Second speaker.'
         ]);
+    });
+
+    test('starts dialogue marked by a normal hyphen on a new line', () => {
+        const result = wordWrap('Narration ends here. - Dialogue starts here.', 80);
+        assert.deepStrictEqual(result, [
+            'Narration ends here.',
+            '- Dialogue starts here.'
+        ]);
+    });
+
+    test('does not split hyphens inside words', () => {
+        const result = wordWrap('This is a well-known story.', 80);
+        assert.deepStrictEqual(result, ['This is a well-known story.']);
     });
 });
 
@@ -251,5 +270,22 @@ suite('splitParagraphs', () => {
         const result = splitParagraphs(input);
         assert.strictEqual(result.length, 1);
         assert.strictEqual(result[0], 'Just one paragraph with some line breaks');
+    });
+
+    test('reflows double-spaced wrapped lines as one paragraph', () => {
+        const input = 'First wrapped line.\n\nSecond wrapped line.';
+        const result = splitParagraphs(input, true);
+        assert.deepStrictEqual(result, [
+            'First wrapped line. Second wrapped line.'
+        ]);
+    });
+
+    test('preserves larger paragraph breaks in double-spaced text', () => {
+        const input = 'First paragraph.\n\n\n\nSecond paragraph.';
+        const result = splitParagraphs(input, true);
+        assert.deepStrictEqual(result, [
+            'First paragraph.',
+            'Second paragraph.'
+        ]);
     });
 });

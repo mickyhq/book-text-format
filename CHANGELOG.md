@@ -2,6 +2,19 @@
 
 All notable changes to the Book Text Formatter extension will be documented in this file.
 
+## [0.1.3] - 2026-06-28
+
+### Fixed
+
+- Reflow double-spaced lines instead of treating every line as a paragraph
+
+## [0.1.2] - 2026-06-28
+
+### Changed
+
+- Always reflow the whole document
+- Start dialogue marked by `—` or `-` on a new line
+
 ## [0.1.0] - 2025-06-26
 
 ### Added

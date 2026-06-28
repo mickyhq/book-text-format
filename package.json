@@ -2,7 +2,7 @@
   "name": "book-text-formatter",
   "displayName": "Book Text Formatter",
   "description": "Format text for book layouts with margin wrapping, double spacing, and smart cleanup.",
-  "version": "0.1.0",
+  "version": "0.1.3",
   "publisher": "mickyhq",
   "license": "MIT",
   "repository": {

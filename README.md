@@ -7,7 +7,7 @@ A VS Code extension that formats text for book layouts — wrapping lines at a c
 - **Right Margin Wrapping** — Wraps text at a specified character width (default: 80) without breaking words.
 - **Double Spacing** — Optionally inserts a blank line between every line of text.
 - **Smart Cleanup** — Strips irregular line breaks and extra whitespace so the text flows cleanly before formatting.
-- **Selection Support** — Format only the selected text, or the entire document if nothing is selected.
+- **Full Document Reflow** — Reformat the whole document so lines use all available margin space.
 - **User Settings** — Customize margin width and double-spacing via VS Code's Settings menu.
 
 ## How to Build
@@ -52,7 +52,7 @@ First build the `.vsix` package, then install it directly into VS Code:
 npx @vscode/vsce package
 
 # Install into VS Code
-code --install-extension book-text-formatter-0.1.0.vsix
+code --install-extension book-text-formatter-0.1.3.vsix
 ```
 
 After installation, restart VS Code and the command **"Book Formatter: Format Text Layout"** will appear in the Command Palette.
@@ -62,7 +62,7 @@ After installation, restart VS Code and the command **"Book Formatter: Format Te
 1. Press **Cmd+Shift+X** (macOS) or **Ctrl+Shift+X** (Windows/Linux) to open the Extensions view.
 2. Click the **...** (three dots) menu in the top-right corner.
 3. Select **"Install from VSIX..."**.
-4. Browse to and select `book-text-formatter-0.1.0.vsix`.
+4. Browse to and select `book-text-formatter-0.1.3.vsix`.
 5. Restart VS Code.
 
 ### Method 3: Side-load for development (Extension Development Host)
@@ -74,11 +74,9 @@ Press **F5** in VS Code with this project open to launch a temporary Extension D
 ### Formatting Text
 
 1. In the Extension Development Host window, open or create any plain text file.
-2. **To format part of a file**: highlight the text you want to format.
-   **To format the whole file**: make sure nothing is selected.
-3. Open the Command Palette (**Cmd+Shift+P** on macOS / **Ctrl+Shift+P** on Windows/Linux).
-4. Type **"Book Formatter"** and select **"Book Formatter: Format Text Layout"**.
-5. The text is cleaned up, wrapped at the configured margin, and (by default) double-spaced.
+2. Open the Command Palette (**Cmd+Shift+P** on macOS / **Ctrl+Shift+P** on Windows/Linux).
+3. Type **"Book Formatter"** and select **"Book Formatter: Format Text Layout"**.
+4. The whole document is cleaned up, wrapped at the configured margin, and (by default) double-spaced.
 
 ### Customizing Settings
 
@@ -159,9 +157,9 @@ text-format/
 
 2. **Word Wrapping** — The cleaned text is split into words and reassembled line-by-line. Each word is added to the current line only if it fits within the margin. Words longer than the margin are placed on their own line — they are never broken mid-word.
 
-3. **Double Spacing** — If enabled, wrapped lines are joined with `\n\n` (one blank line between each). If disabled, lines are joined with `\n`.
+3. **Double Spacing** — If enabled, wrapped lines are joined with `\n\n` (one blank line between each). Paragraphs use a larger break so later formatting can reflow wrapped lines correctly.
 
-4. **Replacement** — The original text (selection or whole document) is replaced with the formatted result in a single undo-able edit.
+4. **Replacement** — The whole document is replaced with the formatted result in a single undo-able edit.
 
 ## Publishing
 
@@ -175,9 +173,9 @@ npm install -g @vscode/vsce
 vsce package
 ```
 
-This produces `book-text-formatter-0.1.0.vsix`, which can be installed via:
+This produces `book-text-formatter-0.1.3.vsix`, which can be installed via:
 ```bash
-code --install-extension book-text-formatter-0.1.0.vsix
+code --install-extension book-text-formatter-0.1.3.vsix
 ```
 
 Or shared on the [VS Code Marketplace](https://marketplace.visualstudio.com/).

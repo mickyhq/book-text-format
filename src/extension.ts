@@ -3,7 +3,7 @@ import * as vscode from 'vscode';
 /**
  * Book Text Formatter Extension
  *
- * Formats selected text (or the entire active document) for book layout by:
+ * Formats the entire active document for book layout by:
  *  1. Splitting text into paragraphs on blank lines, then collapsing irregular
  *     line breaks and extra whitespace inside each paragraph.
  *  2. Wrapping each paragraph at a user-configurable margin (default: 80 characters).
@@ -97,7 +97,7 @@ function getConfig<T>(section: string, defaultValue: T, silent = false): T {
 }
 
 /**
- * Formats the text selection (or the whole document) in the active editor.
+ * Formats the whole document in the active editor.
  */
 function formatText(editor: vscode.TextEditor): void {
     const document = editor.document;
@@ -107,22 +107,14 @@ function formatText(editor: vscode.TextEditor): void {
     const justifyText = getConfig<boolean>('justifyText', false);
 
     // --------------------------------------------------------------------------
-    // 1. Determine the range of text to format.
-    //    If nothing is selected we format the entire document.
+    // 1. Format the entire document so all text is reflowed together.
     // --------------------------------------------------------------------------
-    const selection = editor.selection;
-    let range: vscode.Range;
-
-    if (selection.isEmpty) {
-        const firstLine = document.lineAt(0);
-        const lastLine = document.lineAt(document.lineCount - 1);
-        range = new vscode.Range(
-            firstLine.range.start,
-            lastLine.range.end
-        );
-    } else {
-        range = new vscode.Range(selection.start, selection.end);
-    }
+    const firstLine = document.lineAt(0);
+    const lastLine = document.lineAt(document.lineCount - 1);
+    const range = new vscode.Range(
+        firstLine.range.start,
+        lastLine.range.end
+    );
 
     const inputText = document.getText(range);
 
@@ -135,19 +127,7 @@ function formatText(editor: vscode.TextEditor): void {
     // 2. Smart Cleanup — split into paragraphs on blank lines, then collapse
     //    each paragraph into a clean flowing block.
     // --------------------------------------------------------------------------
-    const normalizedText = inputText
-        .replace(/\r\n/g, '\n')
-        .replace(/\r/g, '\n');
-
-    const rawParagraphs = normalizedText.split(/\n\n+/);
-
-    const paragraphs = rawParagraphs
-        .map(p => p
-            .replace(/\n+/g, ' ')
-            .replace(/[ \t]+/g, ' ')
-            .trim()
-        )
-        .filter(p => p.length > 0);
+    const paragraphs = splitParagraphs(inputText, doubleSpace);
 
     if (paragraphs.length === 0) {
         vscode.window.showWarningMessage('Nothing to format after cleaning whitespace.');
@@ -172,7 +152,7 @@ function formatText(editor: vscode.TextEditor): void {
                 if (
                     firstLineIndent > 0 &&
                     wrapped.length > 0 &&
-                    !wrapped[0].startsWith('—')
+                    !isDialogueStart(wrapped[0])
                 ) {
                     const indent = ' '.repeat(firstLineIndent);
                     wrapped[0] = indent + wrapped[0];
@@ -190,8 +170,9 @@ function formatText(editor: vscode.TextEditor): void {
             // 4. Join lines with the configured spacing.
             // ------------------------------------------------------------------
             const paramGlue = doubleSpace ? '\n\n' : '\n';
+            const paragraphGlue = doubleSpace ? '\n\n\n\n' : '\n\n';
             const formattedParagraphs = wrappedParagraphs.map(lines => lines.join(paramGlue));
-            const formattedText = formattedParagraphs.join('\n\n');
+            const formattedText = formattedParagraphs.join(paragraphGlue);
 
             // ------------------------------------------------------------------
             // 5. Replace the original text with the formatted text.
@@ -210,9 +191,28 @@ function formatText(editor: vscode.TextEditor): void {
     );
 }
 
+function splitParagraphs(text: string, doubleSpace: boolean): string[] {
+    const normalizedText = text
+        .replace(/\r\n/g, '\n')
+        .replace(/\r/g, '\n');
+
+    // In double-spaced text, two newlines separate wrapped lines.
+    // Four newlines preserve a real paragraph boundary.
+    const paragraphBreak = doubleSpace ? /\n{4,}/ : /\n{2,}/;
+
+    return normalizedText
+        .split(paragraphBreak)
+        .map(p => p
+            .replace(/\n+/g, ' ')
+            .replace(/[ \t]+/g, ' ')
+            .trim()
+        )
+        .filter(p => p.length > 0);
+}
+
 /**
  * Word-wraps `text` at `width` characters without breaking words.
- * An em dash marks dialogue, so it always begins a new line.
+ * An em dash or standalone hyphen marks dialogue, so it always begins a new line.
  */
 function wordWrap(text: string, width: number): string[] {
     const words = text
@@ -225,7 +225,7 @@ function wordWrap(text: string, width: number): string[] {
     for (let i = 0; i < words.length; i++) {
         const word = words[i];
 
-        if (word.startsWith('—') && currentLine.length > 0) {
+        if (isDialogueStart(word) && currentLine.length > 0) {
             lines.push(currentLine);
             currentLine = word;
         } else if (currentLine.length === 0) {
@@ -243,6 +243,10 @@ function wordWrap(text: string, width: number): string[] {
     }
 
     return lines;
+}
+
+function isDialogueStart(text: string): boolean {
+    return text.startsWith('—') || text.startsWith('-');
 }
 
 /**
