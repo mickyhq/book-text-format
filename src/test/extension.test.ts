@@ -7,14 +7,20 @@ import * as assert from 'assert';
 // ---------------------------------------------------------------------------
 
 function wordWrap(text: string, width: number): string[] {
-    const words = text.split(' ');
+    const words = text
+        .replace(/—/g, ' —')
+        .trim()
+        .split(/\s+/);
     const lines: string[] = [];
     let currentLine = '';
 
     for (let i = 0; i < words.length; i++) {
         const word = words[i];
 
-        if (currentLine.length === 0) {
+        if (word.startsWith('—') && currentLine.length > 0) {
+            lines.push(currentLine);
+            currentLine = word;
+        } else if (currentLine.length === 0) {
             currentLine = word;
         } else if (currentLine.length + 1 + word.length <= width) {
             currentLine += ' ' + word;
@@ -138,6 +144,22 @@ suite('wordWrap', () => {
     test('handles multiple words exactly filling width', () => {
         const result = wordWrap('abc def ghi', 11);
         assert.deepStrictEqual(result, ['abc def ghi']);
+    });
+
+    test('starts dialogue marked by an em dash on a new line', () => {
+        const result = wordWrap('Narration ends here. —Dialogue starts here.', 80);
+        assert.deepStrictEqual(result, [
+            'Narration ends here.',
+            '—Dialogue starts here.'
+        ]);
+    });
+
+    test('starts each em dash on a new line', () => {
+        const result = wordWrap('—First speaker. — Second speaker.', 80);
+        assert.deepStrictEqual(result, [
+            '—First speaker.',
+            '— Second speaker.'
+        ]);
     });
 });
 

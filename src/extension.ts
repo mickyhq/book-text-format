@@ -169,7 +169,11 @@ function formatText(editor: vscode.TextEditor): void {
                 const wrapped = wordWrap(p, marginWidth);
 
                 // Apply first-line indent if configured.
-                if (firstLineIndent > 0 && wrapped.length > 0) {
+                if (
+                    firstLineIndent > 0 &&
+                    wrapped.length > 0 &&
+                    !wrapped[0].startsWith('—')
+                ) {
                     const indent = ' '.repeat(firstLineIndent);
                     wrapped[0] = indent + wrapped[0];
                 }
@@ -208,16 +212,23 @@ function formatText(editor: vscode.TextEditor): void {
 
 /**
  * Word-wraps `text` at `width` characters without breaking words.
+ * An em dash marks dialogue, so it always begins a new line.
  */
 function wordWrap(text: string, width: number): string[] {
-    const words = text.split(' ');
+    const words = text
+        .replace(/—/g, ' —')
+        .trim()
+        .split(/\s+/);
     const lines: string[] = [];
     let currentLine = '';
 
     for (let i = 0; i < words.length; i++) {
         const word = words[i];
 
-        if (currentLine.length === 0) {
+        if (word.startsWith('—') && currentLine.length > 0) {
+            lines.push(currentLine);
+            currentLine = word;
+        } else if (currentLine.length === 0) {
             currentLine = word;
         } else if (currentLine.length + 1 + word.length <= width) {
             currentLine += ' ' + word;
